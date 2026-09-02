@@ -1,9 +1,12 @@
-"""Structured logging with JSON formatting."""
+"""
+Structured logging configuration using structlog.
+
+Provides JSON-formatted logs with context for production monitoring.
+"""
 
 import logging
 import sys
 from typing import Any, Dict, Optional
-from datetime import datetime
 
 import structlog
 from structlog.types import Processor
@@ -11,158 +14,139 @@ from structlog.types import Processor
 
 def setup_logging(
     log_level: str = "INFO",
-    environment: str = "development",
-    service_name: str = "industrial-qc",
+    log_format: str = "json",
+    service_name: str = "industrial-qc-mlops",
 ) -> None:
     """
-    Configure structured logging with JSON output.
+    Configure structured logging for the application.
     
     Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-        environment: Environment name (development, staging, production).
-        service_name: Service identifier for log correlation.
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_format: Output format (json, text)
+        service_name: Service identifier for log correlation
     """
     
-    # Shared processors for all loggers
-    shared_processors: list[Processor] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(
-            fmt="iso",
-            utc=True,
-        ),
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.UnicodeDecoder(),
-    ]
+    # Map string level to logging constant
+    level = getattr(logging, log_level.upper(), logging.INFO)
     
-    # Add environment-specific processors
-    if environment == "production":
-        # JSON format for production (better for log aggregation)
-        shared_processors.extend([
-            structlog.processors.dict_tracebacks,
+    # Configure processors based on format
+    if log_format == "json":
+        processors = [
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
             structlog.processors.JSONRenderer(),
-        ])
-        formatter_class = structlog.stdlib.ProcessorFormatter
+        ]
     else:
-        # Console format for development (human-readable)
-        shared_processors.extend([
-            structlog.dev.ConsoleRenderer(
-                colors=True,
-                exception_formatter=structlog.dev.rich_traceback,
-            ),
-        ])
-        formatter_class = None
+        processors = [
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer(colors=True),
+        ]
     
     # Configure structlog
     structlog.configure(
-        processors=shared_processors,
-        wrapper_class=structlog.stdlib.BoundLogger,
+        processors=processors,
+        wrapper_class=structlog.make_filtering_bound_logger(level),
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
     
     # Configure standard library logging
-    log_level_int = getattr(logging, log_level.upper(), logging.INFO)
-    
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(log_level_int)
-    
-    if formatter_class:
-        # Production: JSON formatter
-        processor_formatter = formatter_class(
-            processors=shared_processors,
-            foreign_pre_chain=[
-                structlog.stdlib.ExtraAdder(),
-                structlog.stdlib.filter_by_level,
-            ],
-        )
-        handler.setFormatter(processor_formatter)
+    handler.setFormatter(logging.Formatter("%(message)s"))
     
     root_logger = logging.getLogger()
     root_logger.handlers = [handler]
-    root_logger.setLevel(log_level_int)
+    root_logger.setLevel(level)
     
-    # Reduce noise from third-party libraries
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("PIL").setLevel(logging.WARNING)
-    logging.getLogger("matplotlib").setLevel(logging.WARNING)
-    logging.getLogger("fsspec").setLevel(logging.WARNING)
-    
+    # Add service name to all logs
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(service=service_name)
+
 
 def get_logger(name: Optional[str] = None) -> structlog.BoundLogger:
     """
     Get a structured logger instance.
     
     Args:
-        name: Logger name (usually __name__).
+        name: Logger name (usually __name__)
         
     Returns:
-        Configured structlog BoundLogger instance.
+        Configured structlog logger
     """
-    logger = structlog.get_logger(name)
-    return logger  # type: ignore
+    return structlog.get_logger(name)
 
 
-# Convenience function for logging with context
-def log_with_context(
-    message: str,
-    level: str = "info",
-    **kwargs: Any,
-) -> None:
+class LogContext:
     """
-    Log a message with additional context.
+    Context manager for adding temporary context to logs.
     
-    Args:
-        message: Log message.
-        level: Log level (debug, info, warning, error, critical).
-        **kwargs: Additional context to include in the log.
+    Usage:
+        with LogContext(request_id="123", user="admin"):
+            logger.info("Processing request")
     """
-    logger = get_logger()
-    log_method = getattr(logger, level.lower(), logger.info)
-    log_method(message, **kwargs)
+    
+    def __init__(self, **kwargs: Any):
+        self.context = kwargs
+    
+    def __enter__(self) -> None:
+        structlog.contextvars.bind_contextvars(**self.context)
+    
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        # Remove context keys that were added
+        for key in self.context.keys():
+            structlog.contextvars.unbind_contextvars(key)
 
 
-# Example usage and testing
-if __name__ == "__main__":
-    # Setup logging
-    setup_logging(log_level="DEBUG", environment="development")
+def log_execution_time(func_name: str):
+    """
+    Decorator to log function execution time.
     
-    logger = get_logger(__name__)
+    Usage:
+        @log_execution_time("data_loading")
+        def load_data():
+            ...
+    """
+    import time
+    from functools import wraps
     
-    # Basic logging
-    logger.info("Application started")
+    @wraps(func_name)
+    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+        logger = get_logger(func_name)
+        start = time.perf_counter()
+        try:
+            result = await func_name(*args, **kwargs)
+            duration = time.perf_counter() - start
+            logger.info(f"{func_name} completed", duration_ms=duration * 1000)
+            return result
+        except Exception as e:
+            duration = time.perf_counter() - start
+            logger.error(f"{func_name} failed", error=str(e), duration_ms=duration * 1000)
+            raise
     
-    # Logging with context
-    logger.debug(
-        "Processing image",
-        image_id="img_001",
-        width=640,
-        height=480,
-        channels=3,
-    )
+    @wraps(func_name)
+    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+        logger = get_logger(func_name)
+        start = time.perf_counter()
+        try:
+            result = func_name(*args, **kwargs)
+            duration = time.perf_counter() - start
+            logger.info(f"{func_name} completed", duration_ms=duration * 1000)
+            return result
+        except Exception as e:
+            duration = time.perf_counter() - start
+            logger.error(f"{func_name} failed", error=str(e), duration_ms=duration * 1000)
+            raise
     
-    # Logging errors with exceptions
-    try:
-        raise ValueError("Test error")
-    except Exception as e:
-        logger.error(
-            "An error occurred",
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-    
-    # Logging with nested context
-    with structlog.contextvars.bound_contextvars(
-        request_id="req-123",
-        user_id="user-456",
-    ):
-        logger.info("Processing request")
-        logger.debug("Loading model", model_name="yolov8n")
-        logger.info("Request completed", duration_ms=45.2)
+    # Detect if function is async
+    import inspect
+    if inspect.iscoroutinefunction(func_name):
+        return async_wrapper
+    return sync_wrapper

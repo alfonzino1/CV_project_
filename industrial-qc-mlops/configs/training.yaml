@@ -1,45 +1,136 @@
 # Training Configuration
 
-# Paths
-data_config: configs/data.yaml
-model_config: configs/model.yaml
-output_dir: models/experiments
-
-# MLflow tracking
-mlflow_tracking_uri: http://localhost:5000
-experiment_name: industrial-qc-defect-detection
-run_name_template: yolov8-{model}-{date}
-
-# Checkpointing
-save_checkpoint: true
-checkpoint_interval: 10  # Save every N epochs
-save_best: true
-save_best_metric: mAP50-95  # Metric to optimize
-
-# Logging
-log_images: true
-log_images_interval: 5  # Log images every N epochs
-max_images_to_log: 8
-
-# Validation
-val_interval: 1  # Validate every N epochs
-conf_threshold: 0.25  # Confidence threshold for predictions
-iou_threshold: 0.45   # IoU threshold for NMS
-
+training:
+  # Random seed for reproducibility
+  seed: 42
+  
+  # Number of epochs
+  epochs: 100
+  
+  # Batch size (per GPU)
+  batch_size: 16
+  
+  # Number of workers for data loading
+  num_workers: 4
+  
+  # Mixed precision training (AMP)
+  amp: true
+  
+  # Gradient clipping
+  gradient_clip_val: 10.0
+  gradient_clip_algorithm: "norm"
+  
+  # Learning rate scheduler
+  scheduler:
+    type: "cosine"  # linear, cosine, step, plateau
+    warmup_epochs: 5
+    warmup_lr_start: 0.0
+    final_lr_factor: 0.01
+    
+  # Optimizer
+  optimizer:
+    type: "SGD"  # SGD, Adam, AdamW
+    lr: 0.01
+    momentum: 0.937
+    weight_decay: 0.0005
+    nesterov: true
+    
 # Early stopping
-early_stopping_patience: 50
-min_delta: 0.001
-
-# Hyperparameter optimization (Optuna)
-hpo_enabled: false
-hpo_n_trials: 50
-hpo_timeout: 3600  # seconds
-hpo_study_name: yolov8-hpo
-
-# Distributed training
-distributed: false
-sync_bn: true
-
-# Reproducibility
-seed: 42
-deterministic: false  # Can slow down training
+early_stopping:
+  enabled: true
+  monitor: "val/mAP50-95"
+  mode: "max"
+  patience: 20
+  min_delta: 0.001
+  
+# Checkpointing
+checkpoint:
+  save_top_k: 3
+  monitor: "val/mAP50-95"
+  mode: "max"
+  save_last: true
+  every_n_epochs: 5
+  
+# Augmentation settings (Albumentations)
+augmentation:
+  # Geometric transforms
+  flip_horizontal: 0.5
+  flip_vertical: 0.1
+  rotate_limit: [-15, 15]
+  shift_scale_rotate:
+    shift_limit: 0.1
+    scale_limit: 0.1
+    rotate_limit: 15
+  # Photometric transforms
+  brightness_contrast:
+    brightness_limit: 0.2
+    contrast_limit: 0.2
+  hue_saturation:
+    hue_shift_limit: 10
+    sat_shift_limit: 20
+  # Noise and blur
+  gaussian_blur:
+    blur_limit: [3, 7]
+    p: 0.1
+  # Weather simulation (for robustness)
+  random_fog:
+    fog_coef_lower: 0.1
+    fog_coef_upper: 0.3
+    p: 0.1
+  random_rain:
+    slant_lower: -10
+    slant_upper: 10
+    drop_length: 20
+    p: 0.1
+  # Mosaic augmentation (YOLO style)
+  mosaic:
+    enabled: true
+    probability: 0.8
+    
+# Validation
+validation:
+  # Validation frequency (every N epochs)
+  val_every_n_epochs: 1
+  # IoU thresholds for mAP calculation
+  iou_thresholds: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+  
+# MLflow tracking
+mlflow:
+  experiment_name: "${MLFLOW_EXPERIMENT_NAME}"
+  tracking_uri: "${MLFLOW_TRACKING_URI}"
+  log_artifacts: true
+  log_models: true
+  log_hyperparams: true
+  
+# Hyperparameter Optimization (Optuna)
+hpo:
+  enabled: false
+  n_trials: 50
+  timeout_hours: 24
+  sampler: "TPESampler"  # TPE, Random, CMA-ES
+  pruner: "MedianPruner"
+  study_direction: "maximize"
+  study_metric: "val/mAP50-95"
+  
+  # Search space
+  search_space:
+    lr:
+      type: "log_uniform"
+      low: 0.0001
+      high: 0.1
+    momentum:
+      type: "uniform"
+      low: 0.8
+      high: 0.99
+    weight_decay:
+      type: "log_uniform"
+      low: 0.00001
+      high: 0.01
+    augmentation_brightness:
+      type: "uniform"
+      low: 0.1
+      high: 0.3
+    augmentation_rotation:
+      type: "uniform"
+      low: 5
+      high: 30

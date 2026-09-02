@@ -1,37 +1,98 @@
-# TorchServe Configuration for Industrial QC
+# TorchServe Configuration
 
-# Server settings
-inference_address=http://0.0.0.0:8080
-management_address=http://0.0.0.0:8081
-metrics_address=http://0.0.0.0:8082
-grpc_inference_port=7070
-grpc_management_port=7071
-
-# Performance
-default_response_timeout=${INFERENCE_TIMEOUT:-50}
-unregister_model_timeout=30
-number_of_netty_threads=8
-job_queue_size=100
-
-# Batching (critical for <50ms latency)
-max_batch_delay=${MAX_BATCH_DELAY:-10}
-max_batch_size=${MAX_BATCH_SIZE:-8}
-
-# Model store
-model_store=/home/model-server/model-store
-load_models=all
-
-# Logging
-log_location=/home/model-server/logs
-enable_metrics_api=true
-metrics_format=prometheus
-
+server:
+  # Inference port
+  port: 8080
+  # gRPC port (optional, for high-performance clients)
+  grpc_port: 7070
+  # Number of worker processes
+  num_workers: 2
+  # Worker thread count per process
+  worker_threads: 4
+  
+# Model settings
+model:
+  name: "defect_detector"
+  version: "1.0.0"
+  # Handler class path
+  handler: "src.serving.handler.DefectDetectionHandler"
+  # Batch size for dynamic batching
+  batch_size: 4
+  # Maximum delay for batch formation (milliseconds)
+  max_batch_delay: 50
+  # Response timeout (seconds)
+  response_timeout: 30
+  
 # GPU settings
-gpu_ids=${GPU_IDS:-0}
-
-# Security (customize for production)
-allowed_urls=*
-cors_allowed_origin=*
-
-# Health check endpoint
-health_check_path=/ping
+gpu:
+  enabled: true
+  # GPU device IDs (empty for auto-selection)
+  device_ids: []
+  # Memory fraction to allocate per model
+  memory_fraction: 0.8
+  
+# Performance optimization
+performance:
+  # Enable TensorRT (if available)
+  tensorrt: false
+  # FP16 inference
+  fp16: true
+  # CUDA graphs (PyTorch 2.0+)
+  cuda_graphs: false
+  # Warm-up requests before serving traffic
+  warmup_requests: 10
+  
+# Request handling
+request:
+  # Maximum image size (pixels)
+  max_image_size: 1920
+  # Allowed image formats
+  allowed_formats: ["jpg", "jpeg", "png", "bmp"]
+  # Maximum request size (MB)
+  max_request_size_mb: 10
+  
+# NMS post-processing
+nms:
+  iou_threshold: 0.45
+  confidence_threshold: 0.25
+  max_detections: 300
+  
+# Logging
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  # Log format: json, text
+  format: "json"
+  # Include request/response in logs
+  log_requests: false
+  log_responses: false
+  
+# Health checks
+health:
+  # Liveness probe endpoint
+  liveness_endpoint: "/ping"
+  # Readiness probe endpoint  
+  readiness_endpoint: "/healthz"
+  # Test image for readiness check
+  test_image_path: "tests/assets/test_image.jpg"
+  
+# Metrics (Prometheus)
+metrics:
+  enabled: true
+  # Prometheus endpoint
+  endpoint: "/metrics"
+  # Metrics to export
+  export_latency: true
+  export_throughput: true
+  export_gpu_metrics: true
+  export_batch_size: true
+  
+# Security
+security:
+  # Enable CORS
+  cors_enabled: true
+  # Allowed origins
+  allowed_origins: ["*"]
+  # API key authentication (optional)
+  api_key_header: "X-API-Key"
+  api_key: null  # Set via env var

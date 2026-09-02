@@ -1,6 +1,10 @@
-"""Training module initialization."""
+"""Training module for model training and hyperparameter optimization."""
 
-from src.training.train import YOLOv8Trainer
-from src.training.hpo import HyperparameterOptimizer
+from .train import train_model, YOLOv8LightningModule
+from .hpo import run_hyperparameter_optimization
 
-__all__ = ["YOLOv8Trainer", "HyperparameterOptimizer"]
+__all__ = [
+    "train_model",
+    "YOLOv8LightningModule",
+    "run_hyperparameter_optimization",
+]
