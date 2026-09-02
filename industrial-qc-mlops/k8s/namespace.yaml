@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: industrial-qc
+  labels:
+    name: industrial-qc
+    monitoring: enabled

@@ -1,0 +1,233 @@
+# Industrial QC MLOps - Helm Chart Values
+# Production-ready configuration for Kubernetes deployment
+
+# === Global Settings ===
+global:
+  namespace: industrial-qc
+  imagePullSecrets: []
+  storageClass: standard
+
+# === Model Serving Service ===
+serving:
+  replicaCount: 2
+  image:
+    repository: industrial-qc-serving
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+      memory: 8Gi
+      cpu: 2000m
+    requests:
+      memory: 4Gi
+      cpu: 1000m
+  
+  # Auto-scaling based on GPU utilization and request queue
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  # Health checks with test image inference
+  livenessProbe:
+    httpGet:
+      path: /ping
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /predictions/defect_detector
+      port: 8080
+    initialDelaySeconds: 60  # Time for model warm-up
+    periodSeconds: 5
+    timeoutSeconds: 10
+    failureThreshold: 3
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+  
+  # Ingress for external access
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: qc-api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: qc-api-tls
+        hosts:
+          - qc-api.example.com
+  
+  # Environment variables
+  env:
+    - name: TORCHSERVE_MODEL_STORE
+      value: "/home/model-server/model-store"
+    - name: MLFLOW_TRACKING_URI
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-secret
+          key: tracking-uri
+    - name: MINIO_ENDPOINT
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: minio-endpoint
+  
+  # Node selector for GPU nodes
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+  
+  # Tolerations for GPU taints
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+
+# === MLflow Tracking Server ===
+mlflow:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mlflow/mlflow
+    tag: latest
+  
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 2Gi
+      cpu: 500m
+  
+  # S3/MinIO backend for artifacts
+  backendStoreUri: "s3://industrial-qc-mlflow/"
+  defaultArtifactRoot: "s3://industrial-qc-mlflow/artifacts/"
+  
+  env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: minio-secret
+          key: access-key
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio-secret
+          key: secret-key
+    - name: AWS_ENDPOINT_URL
+      value: "http://minio.industrial-qc.svc.cluster.local:9000"
+
+# === MinIO Storage ===
+minio:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 500m
+  
+  buckets:
+    - name: industrial-qc-data
+    - name: industrial-qc-mlflow
+    - name: industrial-qc-models
+  
+  persistence:
+    size: 50Gi
+    storageClass: standard
+
+# === Monitoring Stack ===
+monitoring:
+  prometheus:
+    enabled: true
+    retention: 15d
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 500m
+  
+  grafana:
+    enabled: true
+    adminPassword: "admin"  # Change in production!
+    dashboardProviders:
+      dashboardproviders.yaml:
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards
+  
+  # Custom dashboards for QC metrics
+  dashboards:
+    - name: inference-metrics
+      json: |
+        {
+          "dashboard": {
+            "title": "Inference Performance",
+            "panels": [
+              {
+                "title": "P99 Latency",
+                "targets": [
+                  {
+                    "expr": "histogram_quantile(0.99, rate(torchserve_inference_duration_seconds_bucket[5m]))"
+                  }
+                ]
+              },
+              {
+                "title": "Throughput (req/sec)",
+                "targets": [
+                  {
+                    "expr": "rate(torchserve_requests_total[5m])"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+
+# === Data Drift Detection (Evidently AI) ===
+drift-detection:
+  enabled: true
+  schedule: "0 */6 * * *"  # Every 6 hours
+  referenceDataset: "s3://industrial-qc-data/reference/"
+  alertThreshold: 0.1  # PSI threshold
+  notificationChannel: "slack"  # or "email", "pagerduty"
+
+# === Secrets Management ===
+secrets:
+  create: true
+  minio:
+    accessKey: "minioadmin"  # Use external secrets in prod!
+    secretKey: "minioadmin"
+  mlflow:
+    trackingUri: "http://mlflow.industrial-qc.svc.cluster.local:5000"
+
+# === ConfigMap ===
+configMap:
+  create: true
+  data:
+    minio-endpoint: "http://minio.industrial-qc.svc.cluster.local:9000"
+    data-classes: '["crack", "inclusion", "stain", "pitting", "scale"]'
+    model-version: "v1.0.0"
+    inference-timeout: "30"
