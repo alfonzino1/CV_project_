@@ -1,0 +1,45 @@
+# Training Configuration
+
+# Paths
+data_config: configs/data.yaml
+model_config: configs/model.yaml
+output_dir: models/experiments
+
+# MLflow tracking
+mlflow_tracking_uri: http://localhost:5000
+experiment_name: industrial-qc-defect-detection
+run_name_template: yolov8-{model}-{date}
+
+# Checkpointing
+save_checkpoint: true
+checkpoint_interval: 10  # Save every N epochs
+save_best: true
+save_best_metric: mAP50-95  # Metric to optimize
+
+# Logging
+log_images: true
+log_images_interval: 5  # Log images every N epochs
+max_images_to_log: 8
+
+# Validation
+val_interval: 1  # Validate every N epochs
+conf_threshold: 0.25  # Confidence threshold for predictions
+iou_threshold: 0.45   # IoU threshold for NMS
+
+# Early stopping
+early_stopping_patience: 50
+min_delta: 0.001
+
+# Hyperparameter optimization (Optuna)
+hpo_enabled: false
+hpo_n_trials: 50
+hpo_timeout: 3600  # seconds
+hpo_study_name: yolov8-hpo
+
+# Distributed training
+distributed: false
+sync_bn: true
+
+# Reproducibility
+seed: 42
+deterministic: false  # Can slow down training

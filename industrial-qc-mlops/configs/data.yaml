@@ -1,0 +1,18 @@
+# Dataset Configuration for Industrial QC
+# 5 defect classes for metal surface inspection
+
+path: data/processed
+train: images/train
+val: images/val
+test: images/test
+
+nc: 5
+names:
+  - crack      # Трещины
+  - inclusion  # Включения
+  - stain      # Пятна
+  - pitting    # Язвы/точечная коррозия
+  - scale      # Окалина
+
+# Download script (optional)
+# download: https://example.com/industrial-qc-dataset.zip

@@ -1,0 +1,124 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "industrial-qc-mlops"
+version = "0.1.0"
+description = "Production-ready MLOps pipeline for industrial defect detection"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "MLOps Team", email = "mlops@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "pytorch-lightning>=2.0.0",
+    "ultralytics>=8.0.0",
+    "albumentations>=1.3.0",
+    "opencv-python-headless>=4.7.0",
+    "pillow>=9.5.0",
+    "mlflow>=2.3.0",
+    "boto3>=1.26.0",
+    "dvc[s3]>=3.0.0",
+    "optuna>=3.1.0",
+    "prefect>=2.10.0",
+    "torchserve>=0.7.0",
+    "torch-model-archiver>=0.7.0",
+    "fastapi>=0.95.0",
+    "uvicorn[standard]>=0.21.0",
+    "prometheus-client>=0.16.0",
+    "structlog>=23.1.0",
+    "evidently>=0.2.0",
+    "scikit-learn>=1.2.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pydantic>=1.10.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0",
+    "tqdm>=4.65.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.3.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.24.0",
+    "black>=23.3.0",
+    "flake8>=6.0.0",
+    "mypy>=1.2.0",
+    "isort>=5.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/industrial-qc-mlops"
+Repository = "https://github.com/example/industrial-qc-mlops"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ultralytics.*",
+    "torchserve.*",
+    "evidently.*",
+    "albumentations.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=src --cov-report=term-missing"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
