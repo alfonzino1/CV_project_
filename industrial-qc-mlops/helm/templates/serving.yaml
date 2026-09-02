@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: industrial-qc-serving
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: industrial-qc-serving
+    version: {{ .Values.serving.image.tag }}
+spec:
+  replicas: {{ .Values.serving.replicaCount }}
+  selector:
+    matchLabels:
+      app: industrial-qc-serving
+  template:
+    metadata:
+      labels:
+        app: industrial-qc-serving
+        version: {{ .Values.serving.image.tag }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      
+      containers:
+        - name: torchserve
+          image: "{{ .Values.serving.image.repository }}:{{ .Values.serving.image.tag }}"
+          imagePullPolicy: {{ .Values.serving.image.pullPolicy }}
+          
+          ports:
+            - name: inference
+              containerPort: 8080
+              protocol: TCP
+            - name: management
+              containerPort: 8081
+              protocol: TCP
+            - name: metrics
+              containerPort: 8082
+              protocol: TCP
+          
+          env:
+            {{- toYaml .Values.serving.env | nindent 12 }}
+          
+          resources:
+            {{- toYaml .Values.serving.resources | nindent 12 }}
+          
+          livenessProbe:
+            {{- toYaml .Values.serving.livenessProbe | nindent 12 }}
+          
+          readinessProbe:
+            {{- toYaml .Values.serving.readinessProbe | nindent 12 }}
+          
+          volumeMounts:
+            - name: model-store
+              mountPath: /home/model-server/model-store
+            - name: config
+              mountPath: /home/model-server/config
+            - name: logs
+              mountPath: /home/model-server/logs
+      
+      volumes:
+        - name: model-store
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: industrial-qc-config
+        - name: logs
+          emptyDir: {}
+      
+      {{- with .Values.serving.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.serving.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: industrial-qc-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: industrial-qc-serving
+  {{- with .Values.serving.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.serving.service.type }}
+  ports:
+    - port: {{ .Values.serving.service.port }}
+      targetPort: inference
+      protocol: TCP
+      name: inference
+  selector:
+    app: industrial-qc-serving
+
+---
+{{- if .Values.serving.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: industrial-qc-hpa
+  namespace: {{ .Values.global.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: industrial-qc-serving
+  minReplicas: {{ .Values.serving.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.serving.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.serving.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.serving.autoscaling.targetMemoryUtilizationPercentage }}
+{{- end }}
+
+---
+{{- if .Values.serving.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: industrial-qc-ingress
+  namespace: {{ .Values.global.namespace }}
+  {{- with .Values.serving.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.serving.ingress.className }}
+  {{- if .Values.serving.ingress.tls }}
+  tls:
+    {{- range .Values.serving.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.serving.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: industrial-qc-service
+                port:
+                  number: {{ $.Values.serving.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

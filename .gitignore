@@ -1,41 +1,93 @@
 ```
 # Dependencies
-venv/
 .venv/
+venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+env/
+env.bak/
+venv.bak/
 
-# Build artifacts
+# Build and distribution artifacts
 build/
 dist/
+*.egg
 *.egg-info/
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.obj
+*.out
+
+# Testing
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.hypothesis/
 
 # Logs
 *.log
+*.out
+*.pid
 
-# Environment files
+# Environment variables
 .env
 .env.local
 *.env.*
 
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# IDE files
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# OS files
-.DS_Store
-Thumbs.db
+# Package management
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Testing
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pyx.py
+.ipynb_checkpoints
 .pytest_cache/
-.mypy_cache/
+.coverage
+
+# Helm
+helm/charts/
+helm/.helmignore
+
+# Kubernetes
+k8s/secrets.yaml
+k8s/configmap.yaml
+
+# ML/AI specific
+*.model
+*.pb
+*.tflite
+*.onnx
+saved_model/
+checkpoints/
+models/
 ```
