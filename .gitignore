@@ -1,41 +1,41 @@
 ```
 # Dependencies
-.venv/
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
-.env.local
-.env.*
 
 # Build artifacts
-dist/
 build/
+dist/
 *.egg-info/
 
 # Logs
 *.log
 
-# Editors
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
 # Testing
-.coverage
-htmlcov/
-.coverage.*
 .pytest_cache/
 .mypy_cache/
-
-# Docker
-.dockerenv
-```node_modules/
-.next/
+```

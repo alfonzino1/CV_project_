@@ -1,22 +1,22 @@
-# Core dependencies
+# Core ML
 torch>=2.0.0
 torchvision>=0.15.0
 pytorch-lightning>=2.0.0
 ultralytics>=8.0.0  # YOLOv8
 
-# Data processing
+# Data & Augmentation
 albumentations>=1.3.0
 opencv-python-headless>=4.7.0
 pillow>=9.5.0
 
-# Experiment tracking & registry
+# Experiment Tracking & Registry
 mlflow>=2.3.0
-boto3>=1.26.0  # S3/MinIO client
+boto3>=1.26.0  # S3 client
 
-# Data versioning
+# Data Versioning
 dvc[s3]>=3.0.0
 
-# Hyperparameter optimization
+# Hyperparameter Optimization
 optuna>=3.1.0
 
 # Orchestration
@@ -26,35 +26,34 @@ prefect>=2.10.0
 torchserve>=0.7.0
 torch-model-archiver>=0.7.0
 
-# API & monitoring
+# API & Utilities
 fastapi>=0.95.0
-uvicorn[standard]>=0.21.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+
+# Monitoring & Drift Detection
+evidently>=0.4.0
 prometheus-client>=0.16.0
-structlog>=23.1.0
 
-# Drift detection
-evidently>=0.2.0
-scikit-learn>=1.2.0
-pandas>=2.0.0
-numpy>=1.24.0
-
-# Configuration
+# Configuration & Validation
 pydantic>=1.10.0
-pydantic-settings>=2.0.0
 pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Logging
+structlog>=23.1.0
 
 # Testing
 pytest>=7.3.0
 pytest-cov>=4.0.0
 pytest-asyncio>=0.21.0
-httpx>=0.24.0  # For async testing
 
-# Linting & typing
+# Linting & Type Checking
 black>=23.3.0
 flake8>=6.0.0
 mypy>=1.2.0
 isort>=5.12.0
 
-# Utilities
-tqdm>=4.65.0
-python-dotenv>=1.0.0
+# Kubernetes
+kubernetes>=26.1.0
+helm>=3.0.0

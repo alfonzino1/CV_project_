@@ -1,51 +1,73 @@
-# YOLOv8 Model Configuration
+# Model Configuration for YOLOv8
 
-model: yolov8n  # Options: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
-pretrained: true  # Use COCO pretrained weights
+model:
+  # Architecture variant: n, s, m, l, x (n=nanospeed, x=maximum accuracy)
+  variant: "s"  # YOLOv8s - good balance for production
+  
+  # Pretrained weights
+  pretrained: true
+  pretrained_weights: "yolov8s.pt"
+  
+  # Input configuration
+  input:
+    channels: 3
+    # Will be overridden by data config during training
+    height: 640
+    width: 640
+    
+  # Number of classes (must match dataset)
+  num_classes: 5
+  
+  # Class names for inference
+  class_names:
+    - "crack"
+    - "inclusion"
+    - "stain"
+    - "pitting"
+    - "scale"
 
-# Input
-imgsz: 640
-batch_size: 16
-
-# Training hyperparameters
-epochs: 100
-patience: 50  # Early stopping patience
-warmup_epochs: 3
-warmup_momentum: 0.9
-warmup_bias_lr: 0.1
-
-# Optimizer
-optimizer: SGD
-lr0: 0.01
-lrf: 0.01  # Final learning rate (lr0 * lrf)
-momentum: 0.937
-weight_decay: 0.0005
-
-# Augmentation
-hsv_h: 0.015  # HSV-Hue augmentation
-hsv_s: 0.7    # HSV-Saturation augmentation
-hsv_v: 0.4    # HSV-Value augmentation
-degrees: 0.0  # Rotation degrees
-translate: 0.1
-scale: 0.5
-shear: 0.0
-perspective: 0.0
-flipud: 0.0
-fliplr: 0.5
-mosaic: 1.0   # Mosaic augmentation probability
-mixup: 0.0
-copy_paste: 0.0
-
-# Loss
-box: 7.5      # Box loss gain
-cls: 0.5      # Class loss gain
-dfl: 1.5      # DFL loss gain
-
-# Other
-workers: 8
-device: 0     # GPU device
-amp: true     # Automatic Mixed Precision
-half: false   # FP16 inference
-rect: false   # Rectangular training
-cos_lr: true  # Cosine learning rate scheduler
-close_mosaic: 10  # Disable augmentations in last N epochs
+# Anchor boxes (YOLOv8 uses anchor-free, but kept for compatibility)
+anchors:
+  # Auto-computed from dataset if null
+  auto: true
+  
+# Model architecture overrides
+architecture:
+  # Backbone depth multiplier (0.0-1.0)
+  depth_multiplier: 0.33
+  # Width multiplier (0.0-1.0)
+  width_multiplier: 0.5
+  # Maximum strides
+  max_stride: 64
+  
+# Loss configuration
+loss:
+  # Box loss gain
+  box_gain: 7.5
+  # Classification loss gain
+  cls_gain: 0.5
+  # DFL (Distribution Focal Loss) gain
+  dfl_gain: 1.5
+  
+# NMS (Non-Maximum Suppression) settings for inference
+nms:
+  iou_threshold: 0.45
+  confidence_threshold: 0.25
+  max_detections: 300
+  
+# Quantization settings for deployment
+quantization:
+  enabled: true
+  # Options: fp16, int8
+  dtype: "fp16"
+  # Calibration dataset size for int8
+  calibration_size: 100
+  
+# Export formats
+export:
+  formats:
+    - "torchscript"
+    - "onnx"
+    - "mar"  # TorchServe archive
+  # Optimize for deployment target
+  optimize_for: "gpu"  # gpu, cpu, tensorrt

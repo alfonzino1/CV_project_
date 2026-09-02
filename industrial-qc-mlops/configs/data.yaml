@@ -1,18 +1,68 @@
-# Dataset Configuration for Industrial QC
-# 5 defect classes for metal surface inspection
+# Dataset Configuration for Industrial Defect Detection
 
-path: data/processed
-train: images/train
-val: images/val
-test: images/test
-
-nc: 5
-names:
-  - crack      # Трещины
-  - inclusion  # Включения
-  - stain      # Пятна
-  - pitting    # Язвы/точечная коррозия
-  - scale      # Окалина
-
-# Download script (optional)
-# download: https://example.com/industrial-qc-dataset.zip
+# Data paths (relative to project root or S3 prefixes)
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  validated_dir: "data/validated"
+  
+# S3/MinIO configuration
+storage:
+  endpoint_url: "${AWS_ENDPOINT_URL}"
+  bucket: "${S3_BUCKET}"
+  access_key: "${AWS_ACCESS_KEY_ID}"
+  secret_key: "${AWS_SECRET_ACCESS_KEY}"
+  
+# Dataset splits
+splits:
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  
+# Image specifications
+image:
+  # Target size for training (maintains aspect ratio with padding)
+  height: 640
+  width: 640
+  # Allowed aspect ratio range
+  min_aspect_ratio: 0.5
+  max_aspect_ratio: 2.0
+  # Channels
+  channels: 3
+  
+# Classes (5 defect types for metal surfaces)
+classes:
+  - id: 0
+    name: "crack"         # Трещины
+  - id: 1
+    name: "inclusion"     # Включения
+  - id: 2
+    name: "stain"         # Пятна
+  - id: 3
+    name: "pitting"       # Язвы/точечная коррозия
+  - id: 4
+    name: "scale"         # Окалина
+    
+# Validation schema
+validation:
+  # Minimum number of images per class
+  min_images_per_class: 100
+  # Maximum allowed class imbalance ratio
+  max_imbalance_ratio: 5.0
+  # Required annotation format
+  annotation_format: "yolo"  # yolo, coco
+  # Minimum bounding box area (pixels)
+  min_bbox_area: 16
+  # Maximum allowed empty annotations
+  max_empty_annotations_ratio: 0.05
+  
+# DVC configuration
+dvc:
+  remote_name: "s3_remote"
+  cache_dir: ".dvc/cache"
+  
+# Download settings
+download:
+  chunk_size: 8388608  # 8MB
+  max_retries: 3
+  timeout: 300

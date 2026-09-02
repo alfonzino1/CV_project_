@@ -1,6 +1,11 @@
-"""Data module initialization."""
+"""Data pipeline module for ingestion and preprocessing."""
 
-from src.data.ingestion import DataIngestion
-from src.data.preprocessing import DataPreprocessor
+from .ingestion import DataIngestion, validate_dataset_schema
+from .preprocessing import DataPreprocessor, build_augmentation_pipeline
 
-__all__ = ["DataIngestion", "DataPreprocessor"]
+__all__ = [
+    "DataIngestion",
+    "validate_dataset_schema", 
+    "DataPreprocessor",
+    "build_augmentation_pipeline",
+]
