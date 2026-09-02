@@ -1,5 +1,41 @@
-node_modules/
-.next/
+```
+# Dependencies
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.local
+.env.*
+
+# Build artifacts
 dist/
 build/
+*.egg-info/
+
+# Logs
 *.log
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.coverage.*
+.pytest_cache/
+.mypy_cache/
+
+# Docker
+.dockerenv
+```node_modules/
+.next/

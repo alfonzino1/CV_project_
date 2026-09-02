@@ -1,0 +1,73 @@
+# Multi-stage Dockerfile for Training
+# Optimized for GPU training with NVIDIA Container Toolkit
+
+# Stage 1: Base image with CUDA
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04 as base
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    git \
+    curl \
+    wget \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY configs/ ./configs/
+COPY pyproject.toml .
+
+# Install package in editable mode
+RUN pip install -e .
+
+# Create directories
+RUN mkdir -p /app/models /app/data/raw /app/data/processed /app/data/splits
+
+# Set entrypoint
+ENTRYPOINT ["python"]
+
+# Default command (override with specific script)
+CMD ["-c", "print('Training container ready')"]
+
+
+# Stage 2: Development image with additional tools
+FROM base as development
+
+# Install development tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    vim \
+    htop \
+    tmux \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dev dependencies
+RUN pip install -e ".[dev]"
+
+# Default command for development
+CMD ["bash"]

@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.iml
+
+# MLOps artifacts
+models/
+*.pth
+*.pt
+*.onnx
+*.torchscript
+*.mar
+data/raw/
+data/processed/
+data/splits/
+.dvc/cache/
+.dvc/tmp/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Kubernetes secrets (never commit)
+k8s/*secret*.yaml
+helm/*secret*.yaml
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# DVC
+.dvc/plots/
+
+# MLflow
+mlruns/
+
+# Prefect
+.prefect/

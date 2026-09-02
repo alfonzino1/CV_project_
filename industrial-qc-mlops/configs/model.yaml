@@ -1,0 +1,51 @@
+# YOLOv8 Model Configuration
+
+model: yolov8n  # Options: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+pretrained: true  # Use COCO pretrained weights
+
+# Input
+imgsz: 640
+batch_size: 16
+
+# Training hyperparameters
+epochs: 100
+patience: 50  # Early stopping patience
+warmup_epochs: 3
+warmup_momentum: 0.9
+warmup_bias_lr: 0.1
+
+# Optimizer
+optimizer: SGD
+lr0: 0.01
+lrf: 0.01  # Final learning rate (lr0 * lrf)
+momentum: 0.937
+weight_decay: 0.0005
+
+# Augmentation
+hsv_h: 0.015  # HSV-Hue augmentation
+hsv_s: 0.7    # HSV-Saturation augmentation
+hsv_v: 0.4    # HSV-Value augmentation
+degrees: 0.0  # Rotation degrees
+translate: 0.1
+scale: 0.5
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.5
+mosaic: 1.0   # Mosaic augmentation probability
+mixup: 0.0
+copy_paste: 0.0
+
+# Loss
+box: 7.5      # Box loss gain
+cls: 0.5      # Class loss gain
+dfl: 1.5      # DFL loss gain
+
+# Other
+workers: 8
+device: 0     # GPU device
+amp: true     # Automatic Mixed Precision
+half: false   # FP16 inference
+rect: false   # Rectangular training
+cos_lr: true  # Cosine learning rate scheduler
+close_mosaic: 10  # Disable augmentations in last N epochs

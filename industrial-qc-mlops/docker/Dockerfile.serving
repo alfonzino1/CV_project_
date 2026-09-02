@@ -1,0 +1,114 @@
+# Multi-stage Dockerfile for Serving
+# Optimized for low-latency inference (<50ms) with TorchServe
+
+# Stage 1: Builder - create model archive
+FROM python:3.10-slim as builder
+
+WORKDIR /build
+
+# Install minimal dependencies
+RUN pip install --no-cache-dir \
+    torch>=2.0.0 \
+    torchvision>=0.15.0 \
+    ultralytics>=8.0.0 \
+    torchserve>=0.7.0 \
+    torch-model-archiver>=0.7.0
+
+# Copy model export script
+COPY src/serving/archive_creator.py ./archive_creator.py
+
+# Create model archive (will be run at build time or runtime)
+# RUN python archive_creator.py
+
+
+# Stage 2: Runtime - optimized for inference
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 as runtime
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV TORCHSERVE_HOME=/home/model-server
+ENV MODEL_STORE=${TORCHSERVE_HOME}/model-store
+ENV LOG_LOCATION=${TORCHSERVE_HOME}/logs
+ENV CONFIG_LOCATION=${TORCHSERVE_HOME}/config
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-dev \
+    openjdk-11-jre-headless \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# Create model server user and directories
+RUN useradd -m model-server && \
+    mkdir -p ${MODEL_STORE} ${LOG_LOCATION} ${CONFIG_LOCATION} && \
+    chown -R model-server:model-server ${TORCHSERVE_HOME}
+
+WORKDIR ${TORCHSERVE_HOME}
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    torch>=2.0.0 \
+    torchvision>=0.15.0 \
+    ultralytics>=8.0.0 \
+    torchserve>=0.7.0 \
+    torch-model-archiver>=0.7.0 \
+    fastapi>=0.95.0 \
+    uvicorn>=0.21.0 \
+    prometheus-client>=0.16.0
+
+# Copy configuration
+COPY configs/serving.yaml ${CONFIG_LOCATION}/config.properties
+
+# Copy handler and model archive
+COPY --chown=model-server:model-server src/serving/handler.py ./handler.py
+COPY --from=builder --chown=model-server:model-server /build/*.mar ${MODEL_STORE}/ || true
+
+# Switch to non-root user
+USER model-server
+
+# Expose ports
+# 8080: Inference API
+# 8081: Management API
+# 8082: Metrics (Prometheus)
+# 7070: gRPC Inference
+# 7071: gRPC Management
+EXPOSE 8080 8081 8082 7070 7071
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/ping || exit 1
+
+# Warm-up script
+COPY <<EOF /docker-entrypoint.sh
+#!/bin/bash
+set -e
+
+echo "Starting TorchServe..."
+
+# Warm-up with dummy requests
+if [ -f "\${MODEL_STORE}/defect_detector.mar" ]; then
+    echo "Running warm-up requests..."
+    sleep 10  # Wait for model to load
+    
+    # Send warm-up requests
+    for i in {1..5}; do
+        curl -X POST http://localhost:8080/predictions/defect_detector \
+            -H "Content-Type: application/json" \
+            -d '{"data": "base64_encoded_dummy_image"}' || true
+        sleep 1
+    done
+    
+    echo "Warm-up completed"
+fi
+
+exec torchserve --start --foreground
+EOF
+
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+CMD []

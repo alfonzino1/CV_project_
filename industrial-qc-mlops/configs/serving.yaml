@@ -1,0 +1,37 @@
+# TorchServe Configuration for Industrial QC
+
+# Server settings
+inference_address=http://0.0.0.0:8080
+management_address=http://0.0.0.0:8081
+metrics_address=http://0.0.0.0:8082
+grpc_inference_port=7070
+grpc_management_port=7071
+
+# Performance
+default_response_timeout=${INFERENCE_TIMEOUT:-50}
+unregister_model_timeout=30
+number_of_netty_threads=8
+job_queue_size=100
+
+# Batching (critical for <50ms latency)
+max_batch_delay=${MAX_BATCH_DELAY:-10}
+max_batch_size=${MAX_BATCH_SIZE:-8}
+
+# Model store
+model_store=/home/model-server/model-store
+load_models=all
+
+# Logging
+log_location=/home/model-server/logs
+enable_metrics_api=true
+metrics_format=prometheus
+
+# GPU settings
+gpu_ids=${GPU_IDS:-0}
+
+# Security (customize for production)
+allowed_urls=*
+cors_allowed_origin=*
+
+# Health check endpoint
+health_check_path=/ping
